@@ -17,14 +17,30 @@
         /// <param name="totals"></param>
         public void Write(IEnumerable<TotalPerTimePeriod> totals)
         {
-            using (var file = new StreamWriter(_fileName))
+            try
             {
-                file.WriteLine("Local Time,Volume");
-
-                foreach (var item in totals)
+                // Ensure the directory exists before writing
+                string directory = Path.GetDirectoryName(_fileName);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
-                    file.WriteLine($"{item.TimePeriod},{item.Total}");
+                    Directory.CreateDirectory(directory);
                 }
+
+                using (var file = new StreamWriter(_fileName, append: false))
+                {
+                    file.WriteLine("Local Time,Volume");
+
+                    foreach (var item in totals)
+                    {
+                        file.WriteLine($"{item.TimePeriod},{item.Total}");
+                    }
+
+                    file.Flush();
+                }
+            }
+            catch (IOException ex)
+            {
+                throw new InvalidOperationException($"Unable to write to file '{_fileName}'. The file may be locked by another process.", ex);
             }
         }
     }
