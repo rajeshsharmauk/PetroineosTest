@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="PowerPosition.Server/PowerPosition.Server.csproj" />
+  <Project Path="PowerPosition.Tests/PowerPosition.Tests.csproj" />
+  <Project Path="PowerPosition.WindowsService/PowerPosition.WindowsService.csproj" />
+</Solution>
