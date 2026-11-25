@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Polly;
 
 namespace PowerPosition.Server
 {
@@ -13,11 +14,13 @@ namespace PowerPosition.Server
     {
         private readonly PowerService _powerService;
         private readonly ILogger<Service> _logger;
+        TimeSpan[] _retryIntervals;
 
         public Service(ILogger<Service> logger)
         {
             _powerService = new PowerService();
             _logger = logger;
+            _retryIntervals = new TimeSpan[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4) };
         }
         /// <summary>
         /// Fetches trades from the PowerService.
@@ -46,7 +49,19 @@ namespace PowerPosition.Server
         {
             try
             {
-                return await Task.Run(() => _powerService.GetTrades(date));
+                // Create a retry policy using Polly.
+                var retryPolicy = Policy.Handle<PowerServiceException>()
+                    .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
+                        (exception, timeSpan, retryCount, context) =>
+                        {
+                            _logger.LogWarning($"Retry {retryCount} due to: {exception.Message}. Waiting {timeSpan} before next retry.");
+                        });
+
+                return await retryPolicy.ExecuteAsync(async () =>
+                {
+                    var trades = await _powerService.GetTradesAsync(date);
+                    return trades;
+                });
             }
             catch (AggregateException e)
             {
@@ -62,6 +77,11 @@ namespace PowerPosition.Server
                     }
                 }
 
+                throw;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError("Retry failure in getting trades from PowerService: " + e.Message);
                 throw;
             }
         }
