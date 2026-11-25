@@ -27,6 +27,7 @@ namespace PowerPosition.Server
         /// File to be written to.
         /// </summary>
         public OutputFile _outputFile;
+        private Lock _fileLock;
 
         /// <summary>
         /// Path of the output file.
@@ -40,6 +41,7 @@ namespace PowerPosition.Server
             _configuration = configuration;
             _timePeriods = CreateTimePeriods();
             CsvFilePath = _configuration["ApplicationSettings:CsvFilePath"] ?? "Output";
+            _fileLock = new Lock();
         }
 
         /// <summary>
@@ -103,7 +105,11 @@ namespace PowerPosition.Server
             string filename = Path.Combine(CsvFilePath, $"PowerPosition_{DateTime.Today.ToString("yyyyMMdd")}_{DateTime.Now:HHmm}.csv");
 
             _outputFile = new OutputFile(filename);
-            _outputFile.Write(totals);
+
+            lock(_fileLock)
+            {
+                _outputFile.Write(totals);
+            }            
         }
         /// <summary>
         /// Creates a dictionary with a mapping between a numerical time period
